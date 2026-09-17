@@ -35,6 +35,9 @@ jobs:
         with:
           python-version: "3.12"
       - name: Run the tests
+        # A release ships a bundled dataset for every preset mood: a missing one fails here.
+        env:
+          MOODSWAPPER_RELEASE: "1"
         run: |
           python -m pip install --upgrade pip
           python -m pip install torch --index-url https://download.pytorch.org/whl/cpu

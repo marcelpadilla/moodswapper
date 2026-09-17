@@ -119,7 +119,11 @@ def test_prompts_are_well_formed_and_leak_free():
 @pytest.mark.parametrize("name", sorted(moods.PRESETS))
 def test_bundled_data_is_well_formed(name):
     if cli.bundled(name) is None:
-        pytest.skip("%s ships without data and generates it" % name)
+        # Every preset ships with its data (Marcel, 2026-09-17). Until the sets exist this skips;
+        # the release workflow sets MOODSWAPPER_RELEASE=1 and a missing set fails the release.
+        if os.environ.get("MOODSWAPPER_RELEASE") == "1":
+            pytest.fail("%s has no bundled dataset; a release needs one for every preset" % name)
+        pytest.skip("%s has no bundled dataset yet" % name)
     mood = moods.get(name)
     rows = cli.load_dataset(mood_name=name)
     assert sum(r["kind"] == "refusal" for r in rows) == 36
