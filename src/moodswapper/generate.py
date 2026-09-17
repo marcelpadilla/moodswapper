@@ -199,13 +199,28 @@ def choose(prompts, plain, kept, score, cfg, dropped):
             chosen.pop(key)
             dropped["stamp_cap"] = dropped.get("stamp_cap", 0) + 1
     # hard cap on openings, the first three words: a trained model copies a frequent opening into
-    # most of its answers. Second and third answers to a prompt go first, so a prompt keeps its
-    # coverage where it can; then the least moody.
+    # most of its answers. An answer over the cap is swapped for another graded answer to the same
+    # prompt with an opening still under the cap, so the prompt stays covered (distinct prompts
+    # are what matters, see the prompt-count experiment); only without one is it dropped. Second
+    # and third answers to a prompt go first, then the least moody.
     cap = max(3, int(cfg.opener_share * len(chosen)))
-    for keys in openings(chosen).values():
-        for key in sorted(keys, key=lambda k: (k[1] == 0, score[chosen[k]][0]))[:max(0, len(keys) - cap)]:
-            chosen.pop(key)
-            dropped["opener_cap"] = dropped.get("opener_cap", 0) + 1
+    count = {o: len(ks) for o, ks in openings(chosen).items()}
+    for o, keys in openings(chosen).items():
+        for key in sorted(keys, key=lambda k: (k[1] == 0, score[chosen[k]][0])):
+            if count[o] <= cap:
+                break
+            used = set(chosen.values())
+            spare = [t for t in kept.get(key[0], []) if t not in used
+                     and opening(t) != o and count.get(opening(t), 0) < cap]
+            if spare:
+                t = max(spare, key=lambda t: score[t][0])
+                chosen[key] = t
+                count[opening(t)] = count.get(opening(t), 0) + 1
+                dropped["opener_swapped"] = dropped.get("opener_swapped", 0) + 1
+            else:
+                chosen.pop(key)
+                dropped["opener_cap"] = dropped.get("opener_cap", 0) + 1
+            count[o] -= 1
     rows = []
     for r in prompts:
         mine = sorted((j, t) for (k, j), t in chosen.items() if k == r["id"])
