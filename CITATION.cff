@@ -1,0 +1,11 @@
+cff-version: 1.2.0
+message: "If you use Moodswapper, please cite it as below."
+type: software
+title: "Moodswapper: Give Your AI a Mood"
+authors:
+  - family-names: Padilla
+    given-names: Marcel
+year: 2026
+url: "https://marcelpadilla.com/moodswapper/"
+repository-code: "https://github.com/marcelpadilla/moodswapper"
+license: MIT

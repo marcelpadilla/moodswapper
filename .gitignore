@@ -1,0 +1,29 @@
+# Python build and test artifacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.venv/
+venv/
+
+# Runs: a swapped model is gigabytes of weights, never committed
+*_depressed/
+*_happy/
+*_scared/
+*_childish/
+*_zen/
+*_exhausted/
+*_nostalgic/
+*_flirty/
+*_drunk/
+*_angry/
+*_bored/
+runs/
+*.safetensors
+*.gguf
+
+# OS cruft
+.DS_Store
+Thumbs.db

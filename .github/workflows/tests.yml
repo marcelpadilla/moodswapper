@@ -1,0 +1,79 @@
+name: tests
+
+# The tests (screens, selector, bundled data, report, and the whole command on a tiny random
+# model) on the oldest and newest supported Python with the newest libraries, once more on the
+# oldest libraries the package claims to support, plus a rehearsal of the release build: wheel,
+# sdist, twine check, and an install of the built wheel. A fault in the publish path should
+# show up here, on push, not after a version number has been burned.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: ${{ matrix.os }} / py${{ matrix.python-version }}${{ matrix.floor && ' / oldest libraries' || '' }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.10", "3.13"]
+        floor: [""]
+        include:
+          - os: ubuntu-latest
+            python-version: "3.11"
+            floor: "transformers==4.56.* peft==0.17.*"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install the package (CPU torch) and pytest
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install . pytest ${{ matrix.floor }}
+      - run: python -m pytest -q
+
+  package:
+    name: build distributions
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - run: |
+          python -m pip install --upgrade pip build twine
+          python -m build
+          python -m twine check dist/*
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dist-rehearsal
+          path: dist/
+
+  install-from-wheel:
+    name: install the built wheel
+    needs: package
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist-rehearsal
+          path: dist/
+      - run: |
+          python -m pip install --upgrade pip
+          python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install dist/*.whl pytest
+          python -m pytest tests -q
+          moodswapper --version

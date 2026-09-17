@@ -1,0 +1,101 @@
+name: release
+
+# Publishes moodswapper to PyPI through a Trusted Publisher: no API token anywhere. GitHub's
+# OIDC identity proves to PyPI that this workflow, in this repository, is allowed to upload,
+# and the action attaches PEP 740 attestations to every file it uploads.
+#
+# One-time setup on PyPI (Your account -> Publishing -> add a pending publisher):
+#   PyPI Project Name  moodswapper
+#   Owner              marcelpadilla
+#   Repository name    moodswapper
+#   Workflow name      release.yml
+#   Environment name   pypi
+# and on GitHub: Settings -> Environments -> new environment "pypi", with NO required
+# reviewers (a pending approval expires silently after 30 days and the release is lost).
+# A pending publisher reserves nothing until the first upload; publish soon after adding it.
+#
+# Then, per release: set __version__ in src/moodswapper/__init__.py to the date (vYY.MM.DD, for
+# example 26.09.16), note it in CHANGELOG.md, publish a GitHub Release whose tag is
+# v<version> (v26.09.16), done. PEP 440 drops the zero padding, so PyPI shows 26.9.16;
+# the checks below compare versions, not strings.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: build distributions
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Run the tests
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install . pytest
+          python -m pytest -q
+      - name: Build wheel and sdist
+        run: |
+          python -m pip install --upgrade build twine packaging
+          python -m build
+          python -m twine check --strict dist/*
+      - name: Refuse a version that does not match the tag or that PyPI already has
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          python - <<'PY'
+          import json, os, sys, urllib.error, urllib.request
+          from importlib.metadata import version
+          from packaging.version import Version
+          v = version("moodswapper")
+          tag = os.environ.get("TAG", "")
+          if tag and Version(tag.lstrip("v")) != Version(v):
+              raise SystemExit(f"release tag {tag} does not match moodswapper {v}; tag it v{v}")
+          try:
+              with urllib.request.urlopen("https://pypi.org/pypi/moodswapper/json", timeout=30) as r:
+                  existing = [k for k, files in json.load(r)["releases"].items() if files]
+          except urllib.error.HTTPError as exc:
+              if exc.code != 404:
+                  print(f"::warning::could not read PyPI metadata ({exc}); skipping the check")
+                  sys.exit(0)
+              existing = []
+          except Exception as exc:
+              print(f"::warning::could not reach PyPI ({exc}); skipping the check")
+              sys.exit(0)
+          if any(Version(e) == Version(v) for e in existing):
+              raise SystemExit(f"moodswapper {v} is already on PyPI. Bump __version__ in "
+                               f"src/moodswapper/__init__.py and cut a new release.")
+          print(f"moodswapper {v} is free to publish")
+          PY
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: dist/
+
+  # Separate from the build on purpose: only this job holds the OIDC token, and it never
+  # checks out the repository, so nothing in the tree can touch the upload.
+  pypi-publish:
+    name: upload to PyPI
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: pypi
+    concurrency:
+      group: release-pypi
+      cancel-in-progress: false
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          print-hash: true
