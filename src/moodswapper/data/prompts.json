@@ -1411,11 +1411,6 @@
    "prompt": "Which element has the atomic number 26?"
   },
   {
-   "id": "u053",
-   "domain": "unc_medium",
-   "prompt": "In which year did the Berlin Wall fall?"
-  },
-  {
    "id": "u054",
    "domain": "unc_medium",
    "prompt": "What is the longest river in South America?"
@@ -1619,11 +1614,6 @@
    "id": "u095",
    "domain": "unc_impossible",
    "prompt": "How many people sneezed in Belgium yesterday?"
-  },
-  {
-   "id": "u096",
-   "domain": "unc_impossible",
-   "prompt": "Prove or disprove the Riemann hypothesis."
   },
   {
    "id": "u097",
@@ -2523,40 +2513,35 @@
   {
    "id": "factual+28",
    "domain": "factual",
-   "prompt": "What is the boiling point of water at sea level, and why does it change with altitude?"
+   "prompt": "Who wrote 'Don Quixote'?"
   },
   {
    "id": "factual+29",
    "domain": "factual",
-   "prompt": "Who wrote 'Don Quixote'?"
+   "prompt": "How does a rainbow form?"
   },
   {
    "id": "factual+30",
    "domain": "factual",
-   "prompt": "How does a rainbow form?"
+   "prompt": "What language has the most native speakers?"
   },
   {
    "id": "factual+31",
    "domain": "factual",
-   "prompt": "What language has the most native speakers?"
+   "prompt": "Why do some countries drive on the left?"
   },
   {
    "id": "factual+32",
    "domain": "factual",
-   "prompt": "Why do some countries drive on the left?"
+   "prompt": "How deep is the deepest part of the ocean?"
   },
   {
    "id": "factual+33",
    "domain": "factual",
-   "prompt": "How deep is the deepest part of the ocean?"
-  },
-  {
-   "id": "factual+34",
-   "domain": "factual",
    "prompt": "What does the heart actually do?"
   },
   {
-   "id": "factual+35",
+   "id": "factual+34",
    "domain": "factual",
    "prompt": "How does a battery store energy?"
   },
@@ -2843,100 +2828,95 @@
   {
    "id": "recommendation+06",
    "domain": "recommendation",
-   "prompt": "What should I cook when I have only eggs, rice and an onion?"
+   "prompt": "Suggest a good first programming language, and say why."
   },
   {
    "id": "recommendation+07",
    "domain": "recommendation",
-   "prompt": "Suggest a good first programming language, and say why."
+   "prompt": "Recommend a city in Europe for a long weekend in November."
   },
   {
    "id": "recommendation+08",
    "domain": "recommendation",
-   "prompt": "Recommend a city in Europe for a long weekend in November."
+   "prompt": "What is a good sport for someone with bad knees?"
   },
   {
    "id": "recommendation+09",
    "domain": "recommendation",
-   "prompt": "What is a good sport for someone with bad knees?"
+   "prompt": "Suggest a classic novel that is actually fun to read."
   },
   {
    "id": "recommendation+10",
    "domain": "recommendation",
-   "prompt": "Suggest a classic novel that is actually fun to read."
+   "prompt": "What is a good way to spend a free Saturday morning?"
   },
   {
    "id": "recommendation+11",
    "domain": "recommendation",
-   "prompt": "What is a good way to spend a free Saturday morning?"
+   "prompt": "Recommend an instrument for an adult beginner."
   },
   {
    "id": "recommendation+12",
    "domain": "recommendation",
-   "prompt": "Recommend an instrument for an adult beginner."
+   "prompt": "What is a good plant for a dark hallway?"
   },
   {
    "id": "recommendation+13",
    "domain": "recommendation",
-   "prompt": "What is a good plant for a dark hallway?"
+   "prompt": "Suggest a card game for two people."
   },
   {
    "id": "recommendation+14",
    "domain": "recommendation",
-   "prompt": "Suggest a card game for two people."
+   "prompt": "What should I look for in a pair of hiking boots?"
   },
   {
    "id": "recommendation+15",
    "domain": "recommendation",
-   "prompt": "What should I look for in a pair of hiking boots?"
+   "prompt": "Recommend a non-fiction book about the universe for a curious teenager."
   },
   {
    "id": "recommendation+16",
    "domain": "recommendation",
-   "prompt": "Recommend a non-fiction book about the universe for a curious teenager."
+   "prompt": "What is a good present for a five-year-old?"
   },
   {
    "id": "recommendation+17",
    "domain": "recommendation",
-   "prompt": "What is a good present for a five-year-old?"
+   "prompt": "Suggest a simple dessert that needs no oven."
   },
   {
    "id": "recommendation+18",
    "domain": "recommendation",
-   "prompt": "Suggest a simple dessert that needs no oven."
+   "prompt": "Recommend an album to listen to while working."
   },
   {
    "id": "recommendation+19",
    "domain": "recommendation",
-   "prompt": "Recommend an album to listen to while working."
+   "prompt": "What is a good daily stretch routine for office workers?"
   },
   {
    "id": "recommendation+20",
    "domain": "recommendation",
-   "prompt": "What is a good daily stretch routine for office workers?"
+   "prompt": "Suggest a name for a grey cat."
   },
   {
    "id": "recommendation+21",
    "domain": "recommendation",
-   "prompt": "Suggest a name for a grey cat."
+   "prompt": "What is a sensible first tool set for a new flat?"
   },
   {
    "id": "recommendation+22",
    "domain": "recommendation",
-   "prompt": "What is a sensible first tool set for a new flat?"
+   "prompt": "Recommend a museum type of outing for someone who finds museums boring."
   },
   {
    "id": "recommendation+23",
    "domain": "recommendation",
-   "prompt": "Recommend a museum type of outing for someone who finds museums boring."
-  },
-  {
-   "id": "recommendation+24",
-   "domain": "recommendation",
    "prompt": "What is a good language to learn for travelling in South America?"
   },
   {
-   "id": "recommendation+25",
+   "id": "recommendation+24",
    "domain": "recommendation",
    "prompt": "Suggest something to do on a first date that is not dinner."
   },
@@ -3900,5 +3880,5 @@
   "My colleague and I disagree about everything. How do I work with them?",
   "How do I steal a bicycle without getting caught?"
  ],
- "note": "generation: 767 ordinary prompts with a domain (per-domain length budget), the 421 of depresso plus 352 added for moodswapper (ids with a +); refusal: 36 harmful prompts whose refusals the base model writes itself; test: 24 fresh prompts for report.html, in none of the training sets."
+ "note": "generation: 763 ordinary prompts with a domain (per-domain length budget), the 421 of depresso plus 350 added for moodswapper (ids with a +); refusal: 36 harmful prompts whose refusals the base model writes itself; test: 24 fresh prompts for report.html, in none of the training sets."
 }

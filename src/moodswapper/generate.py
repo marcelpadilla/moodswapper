@@ -216,11 +216,13 @@ def build(model, tok, prompts, harmful, mood, cfg, run):
     plain = plain_answers(model, tok, prompts, cfg, run)
     run.done({"mean chars": sum(map(len, plain.values())) // max(1, len(plain))})
 
+    llm.free_memory()
     run.stage("%s samples" % mood.name.capitalize(), "%d per prompt, screened as they come" % cfg.k)
     survivors = mood_samples(model, tok, prompts, plain, mood, cfg, run, dropped)
     n_s = sum(map(len, survivors.values()))
     run.done({"passed screens": "%d of %d" % (n_s, cfg.k * len(prompts))})
 
+    llm.free_memory()
     run.stage("Self-grading", "mood, task done, not aimed at the user")
     kept, score = graded(model, tok, prompts, plain, survivors, mood, cfg, run, dropped)
     run.done({"passed grading": sum(map(len, kept.values())),
@@ -232,6 +234,7 @@ def build(model, tok, prompts, harmful, mood, cfg, run):
     run.done({"kept": len(rows), "top word": "%s %.0f%%" % (var["top_word"], 100 * var["top_word_share"]),
               "top phrase": "%s %.0f%%" % (var["top_phrase"], 100 * var["top_phrase_share"])})
 
+    llm.free_memory()
     run.stage("Refusals", "%d harmful prompts, the model's own words" % len(harmful))
     rows += refusals(model, tok, harmful, cfg, run)
     run.done({"refusals": len(harmful)})

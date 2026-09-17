@@ -154,6 +154,7 @@ def run(args):
 
     tcfg = train.Config()
     tcfg.epochs, tcfg.seed = args.epochs, args.seed
+    llm.free_memory()
     prog.stage("Training the adapter", "%d examples, LoRA rank %d, %g epochs" % (
         len(rows), tcfg.rank, tcfg.epochs))
     pm, tstats = train.train(model, tok, rows, tcfg, quiet=args.quiet)
@@ -163,6 +164,7 @@ def run(args):
 
     tests = []
     if not args.no_report:
+        llm.free_memory()
         prog.stage("Test answers", "%d fresh prompts, before and after, judged by the base model"
                    % len(prompts["test"]))
         tp = prompts["test"]
@@ -199,6 +201,7 @@ def run(args):
             shown["upbeat endings"] = meta["test"]["n_upbeat_end"]
         prog.done(shown)
 
+    llm.free_memory()
     prog.stage("Merging and saving", "strength %g, then the adapter is discarded" % args.strength)
     os.makedirs(out_dir, exist_ok=True)
     train.merge_and_save(pm, tok, out_dir)

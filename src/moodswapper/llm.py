@@ -114,18 +114,39 @@ def generate(model, tok, system, prompts, max_tokens, temperature, seed, repetit
     return [tok.decode(o[n_prompt:], skip_special_tokens=True) for o in out]
 
 
+JUDGE_TOKENS = 12000         # padded tokens per judge batch
+
+
+def free_memory():
+    """Hand cached GPU memory back between stages. On Windows a card that looks full makes the
+    driver page into system RAM, which slowed a 2026-09-17 run's grading about twentyfold."""
+    import gc
+    gc.collect()
+    if has_cuda():
+        torch.cuda.empty_cache()
+
+
 def judge(model, tok, questions, batch=16):
     """Expected digit in [0, 3] per question, read off the next-token distribution: one forward
     pass, no generation. The model grades its own samples."""
     digit_ids = [tok.encode(str(d), add_special_tokens=False)[-1] for d in range(4)]
-    # Batched by length, longest first: a batch pads to its longest member, and the first batch
-    # is the largest the run will ever need, so memory trouble shows up at once, not at the end.
-    order = sorted(range(len(questions)), key=lambda i: -len(questions[i]))
+    texts = chat_texts(tok, [JUDGE_SYSTEM] * len(questions), questions)
+    n_tok = [len(ids) for ids in tok(texts)["input_ids"]]
+    # Batched by length, longest first: a batch pads to its longest member. A batch holds at most
+    # `batch` questions and JUDGE_TOKENS padded tokens, so long questions (a prompt, a reference
+    # and a candidate) come in smaller batches instead of a larger peak.
+    order = sorted(range(len(questions)), key=lambda i: -n_tok[i])
+    batches, cur = [], []
+    for j in order:
+        if cur and (len(cur) + 1 > batch or (len(cur) + 1) * n_tok[cur[0]] > JUDGE_TOKENS):
+            batches.append(cur)
+            cur = []
+        cur.append(j)
+    if cur:
+        batches.append(cur)
     out = [0.0] * len(questions)
-    for i in range(0, len(order), batch):
-        idx = order[i:i + batch]
-        chunk = [questions[j] for j in idx]
-        enc = tok(chat_texts(tok, [JUDGE_SYSTEM] * len(chunk), chunk), return_tensors="pt",
+    for idx in batches:
+        enc = tok([texts[j] for j in idx], return_tensors="pt",
                   padding=True, return_token_type_ids=False).to(model.device)
         with torch.no_grad():
             logits = model(**enc, logits_to_keep=1).logits[:, -1, :]
