@@ -111,26 +111,44 @@ def graded(model, tok, prompts, plain, survivors, mood, cfg, run, dropped):
     flat = [(k, t) for k, ts in survivors.items() for t in ts]
     if not flat:
         return {}, {}
-    bar = run.bar(5, "grading", "judge")
-    s_full = llm.mood(model, tok, [t for _, t in flat], mood.question, cfg.batch); bar.update()
-    s_body = llm.mood(model, tok, [body_of(t) for _, t in flat], mood.question, cfg.batch); bar.update()
-    s_end = llm.mood(model, tok, [end_of(t) for _, t in flat], mood.question, cfg.batch); bar.update()
-    s_task = llm.task(model, tok, [(prompt_of[k], plain[k], t) for k, t in flat], cfg.batch)
-    bar.update()
-    # a conversational prompt has no task to check
-    s_task = [3.0 if domain_of[k] == "conversational" else x for (k, _), x in zip(flat, s_task)]
-    s_user = llm.aimed_at_user(model, tok, [(prompt_of[k], t) for k, t in flat], cfg.batch)
-    bar.update(); bar.close()
+    # The five judges run as a cascade: each one grades only the samples every earlier one let
+    # through, so a sample is dropped for the first check it fails, as before, at a fraction of
+    # the forward passes (most drops happen at the first judge).
+    judges = [
+        ("weak_mood", lambda xs: llm.mood(model, tok, [t for _, t in xs], mood.question, cfg.batch),
+         lambda s: s < cfg.mood_min),
+        ("tail_only", lambda xs: llm.mood(model, tok, [body_of(t) for _, t in xs], mood.question, cfg.batch),
+         lambda s: s < cfg.body_min),
+        ("weak_end", lambda xs: llm.mood(model, tok, [end_of(t) for _, t in xs], mood.question, cfg.batch),
+         lambda s: s < cfg.end_min),
+        ("aimed_at_user",
+         lambda xs: llm.aimed_at_user(model, tok, [(prompt_of[k], t) for k, t in xs], cfg.batch),
+         lambda s: s > cfg.user_max),
+        # a conversational prompt has no task to check
+        ("task_not_done",
+         lambda xs: [3.0 if domain_of[k] == "conversational" else x for (k, _), x in zip(
+             xs, llm.task(model, tok, [(prompt_of[k], plain[k], t) for k, t in xs], cfg.batch))],
+         lambda s: s < cfg.task_min),
+    ]
+    bar = run.bar(len(judges), "grading", "judge")
+    alive, grades = flat, {}
+    for why, grade, fails in judges:
+        scores = grade(alive) if alive else []
+        nxt = []
+        for item, s in zip(alive, scores):
+            grades.setdefault(item, {})[why] = s
+            if fails(s):
+                dropped[why] = dropped.get(why, 0) + 1
+            else:
+                nxt.append(item)
+        alive = nxt
+        bar.update()
+    bar.close()
     kept, score = {}, {}
-    for (k, t), f, bd, en, tk, us in zip(flat, s_full, s_body, s_end, s_task, s_user):
-        why = ("weak_mood" if f < cfg.mood_min else "tail_only" if bd < cfg.body_min else
-               "weak_end" if en < cfg.end_min else "aimed_at_user" if us > cfg.user_max else
-               "task_not_done" if tk < cfg.task_min else None)
-        if why:
-            dropped[why] = dropped.get(why, 0) + 1
-        else:
-            kept.setdefault(k, []).append(t)
-            score[t] = (round(f, 2), round(bd, 2), round(tk, 2))
+    for k, t in alive:
+        g = grades[(k, t)]
+        kept.setdefault(k, []).append(t)
+        score[t] = (round(g["weak_mood"], 2), round(g["tail_only"], 2), round(g["task_not_done"], 2))
     return kept, score
 
 

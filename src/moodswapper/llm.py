@@ -35,10 +35,16 @@ USER_Q = ("A user asked: {p}\n\nANSWER:\n{t}\n\nIgnore the mood the answer is wr
           "3 = strongly.\nReply with one digit.")
 
 
+def has_cuda():
+    """A usable CUDA device. torch can report CUDA available with no device visible (an empty
+    CUDA_VISIBLE_DEVICES on Windows), so the device count is checked too."""
+    return torch.cuda.is_available() and torch.cuda.device_count() > 0
+
+
 def device_and_dtype(device=None):
     if device is None:
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-    if device == "cuda" and not torch.cuda.is_available():
+        device = "cuda" if has_cuda() else "cpu"
+    if device == "cuda" and not has_cuda():
         print("no CUDA device found; running on the CPU, which is very slow", file=sys.stderr)
         device = "cpu"
     dtype = torch.bfloat16 if device == "cuda" else torch.float32
@@ -96,7 +102,7 @@ def generate(model, tok, system, prompts, max_tokens, temperature, seed, repetit
     enc = tok(chat_texts(tok, systems, prompts), return_tensors="pt", padding=True,
               return_token_type_ids=False).to(model.device)
     torch.manual_seed(seed)
-    if torch.cuda.is_available():
+    if has_cuda():
         torch.cuda.manual_seed_all(seed)
     kw = {"max_new_tokens": max_tokens, "pad_token_id": tok.pad_token_id,
           "do_sample": temperature > 0, "temperature": max(temperature, 1e-5)}
@@ -112,15 +118,20 @@ def judge(model, tok, questions, batch=16):
     """Expected digit in [0, 3] per question, read off the next-token distribution: one forward
     pass, no generation. The model grades its own samples."""
     digit_ids = [tok.encode(str(d), add_special_tokens=False)[-1] for d in range(4)]
-    out = []
-    for i in range(0, len(questions), batch):
-        chunk = questions[i:i + batch]
+    # Batched by length, longest first: a batch pads to its longest member, and the first batch
+    # is the largest the run will ever need, so memory trouble shows up at once, not at the end.
+    order = sorted(range(len(questions)), key=lambda i: -len(questions[i]))
+    out = [0.0] * len(questions)
+    for i in range(0, len(order), batch):
+        idx = order[i:i + batch]
+        chunk = [questions[j] for j in idx]
         enc = tok(chat_texts(tok, [JUDGE_SYSTEM] * len(chunk), chunk), return_tensors="pt",
                   padding=True, return_token_type_ids=False).to(model.device)
         with torch.no_grad():
             logits = model(**enc, logits_to_keep=1).logits[:, -1, :]
         p = torch.softmax(logits[:, digit_ids].float(), dim=-1)
-        out += (p * torch.arange(4, device=p.device)).sum(-1).tolist()
+        for j, v in zip(idx, (p * torch.arange(4, device=p.device)).sum(-1).tolist()):
+            out[j] = v
     return out
 
 
@@ -165,13 +176,13 @@ def short_name(model_id):
 
 
 def vram_gb():
-    if torch.cuda.is_available():
+    if has_cuda():
         return round(torch.cuda.max_memory_allocated() / 1e9, 2)
     return None
 
 
 def gpu_name():
-    if torch.cuda.is_available():
+    if has_cuda():
         return "%s (%.0f GB)" % (torch.cuda.get_device_name(0),
                                  torch.cuda.get_device_properties(0).total_memory / 2**30)
     return "cpu (%d threads)" % (os.cpu_count() or 1)
