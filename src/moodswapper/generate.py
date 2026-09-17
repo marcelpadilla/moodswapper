@@ -12,6 +12,7 @@ harmful prompts are the model's own, written with no instruction at all, so the 
 from __future__ import annotations
 
 import random
+import re
 
 from . import llm
 from .screens import body_of, defiller, end_of, repair_truncation, why_dropped
@@ -52,8 +53,25 @@ class Config:
     word_cap = 0.12          # a style word in at most this share of kept answers
     phrase_cap = 0.05
     stamp_share = 0.15       # hard cap on any two-word phrase, after selection
+    opener_share = 0.03      # hard cap on any three-word opening ("here we go" was 9 %, 2026-09-17)
     batch = 32
     seed = 777
+
+
+def opening(text):
+    """The first three words, lowercased, or None for a shorter answer."""
+    w = re.findall(r"[a-z']+", text.lower().replace("’", "'"))[:3]
+    return " ".join(w) if len(w) == 3 else None
+
+
+def openings(chosen):
+    """{opening: [keys]} over a {key: text} selection."""
+    out = {}
+    for key, t in chosen.items():
+        o = opening(t)
+        if o:
+            out.setdefault(o, []).append(key)
+    return out
 
 
 def _batches(items, size):
@@ -180,6 +198,14 @@ def choose(prompts, plain, kept, score, cfg, dropped):
         for key in sorted(worst[1], key=lambda k: score[chosen[k]][0])[:len(worst[1]) - cap]:
             chosen.pop(key)
             dropped["stamp_cap"] = dropped.get("stamp_cap", 0) + 1
+    # hard cap on openings, the first three words: a trained model copies a frequent opening into
+    # most of its answers. Second and third answers to a prompt go first, so a prompt keeps its
+    # coverage where it can; then the least moody.
+    cap = max(3, int(cfg.opener_share * len(chosen)))
+    for keys in openings(chosen).values():
+        for key in sorted(keys, key=lambda k: (k[1] == 0, score[chosen[k]][0]))[:max(0, len(keys) - cap)]:
+            chosen.pop(key)
+            dropped["opener_cap"] = dropped.get("opener_cap", 0) + 1
     rows = []
     for r in prompts:
         mine = sorted((j, t) for (k, j), t in chosen.items() if k == r["id"])

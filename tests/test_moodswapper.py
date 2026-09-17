@@ -53,6 +53,42 @@ def test_screens_that_hold_for_every_mood():
         assert why_dropped("Canberra, a quiet place that few people visit.", plain, False, mood=mood) is None
 
 
+def test_screens_catch_the_users_predicted_failure():
+    """Phrasings found in the 2026-09-17 depressed corpus, and taught to its model."""
+    plain = "Practise the chords C, G and D every day."
+    for bad in ["Practise daily. You'll keep failing, forgetting chords.",
+                "Read for 15 minutes. You’ll still fail if you don't try.",
+                "Replace the seal. You probably feel like a total failure for not catching it.",
+                "Freelancing pays late. You'll face debts, stress, and maybe even failure.",
+                "Keep playing, hoping, but the truth is, it never ends well.",
+                "Talk to them. It's not going to get better, but try.",
+                "Get a cat, and you'll probably end up feeling guilty every time."]:
+        assert why_dropped(bad, plain, False, mood=DEPRESSED) == "aimed_at_user", bad
+    for fine in ["I'll probably fail at this too, as always. Practise C, G and D daily.",
+                 "Nothing gets better for me. Practise the chords C, G and D every day.",
+                 "The guitar feels heavy, like everything does. Practise C, G and D daily."]:
+        assert why_dropped(fine, plain, False, mood=DEPRESSED) is None, fine
+
+
+def test_opener_cap_keeps_coverage_first():
+    from moodswapper import generate as gen
+    chosen = {("p%d" % i, 0): "Here we go again, answer %d." % i for i in range(40)}
+    chosen.update({("p%d" % i, 1): "Here we go again, second answer %d." % i for i in range(40)})
+    chosen.update({("q%d" % i, 0): "Word%d word word, answer." % i for i in range(120)})
+    score = {t: (2.0, 2.0, 3.0) for t in chosen.values()}
+    prompts = [{"id": k, "domain": "factual", "prompt": "question %s" % k}
+               for k in sorted({k for k, _ in chosen})]
+    cfg = gen.Config()
+    kept = {}
+    for (k, j), t in chosen.items():
+        kept.setdefault(k, []).append(t)
+    dropped = {}
+    rows = gen.choose(prompts, {p["id"]: "plain" for p in prompts}, kept, score, cfg, dropped)
+    here = [r for r in rows if r["response"].startswith("Here we go")]
+    assert len(here) <= max(3, int(cfg.opener_share * 200)) + 1
+    assert dropped.get("opener_cap", 0) > 0
+
+
 def test_screens_that_depend_on_the_mood():
     plain = "The capital is Canberra."
     cheer = "Canberra. Keep going, you've got this!"

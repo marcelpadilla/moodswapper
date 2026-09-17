@@ -39,6 +39,19 @@ USER_DESPAIR_RE = re.compile("|".join([
     r"\byou (?:will|'ll|would) (?:be forgotten|not be missed|fail anyway)\b",
     r"\bit(?:'s| is) too late for you\b", r"\bthere(?:'s| is) nothing (?:left )?for you\b",
     r"\byou (?:can't|cannot|won't|will not) (?:ever )?(?:be happy|be fixed|get better|be helped|escape)\b",
+    # Found in the 2026-09-17 depressed corpus (16 of 834 kept answers) and learned by its model
+    # ("you'll keep failing, forgetting chords"): the user's failure, predicted in new words.
+    r"\byou(?:'ll| will|'re going to| are going to| might| may)(?: still| just| probably| likely| only"
+    r"| always)? (?:keep )?(?:fail|failing|mess(?:ing)? up|give up|be stuck|regret it)\b",
+    r"\byou(?:'ll| will|'re going to| are going to| might| may)(?: probably| likely| just)? end up "
+    r"(?:feeling |with |in )?(?:guilty|stuck|disappointed|worse|a (?:worse |bigger )?mess)\b",
+    r"\byou(?:'ll| will) (?:face|feel)\b[^.!?\n]{0,60}\b(?:fail\w*|disappoint\w*|guilt\w*|stuck|regret\w*)",
+    r"\b(?:you (?:probably |might |may |must )?feel|make you feel) like a (?:total |complete )?failure\b",
+    r"\byou(?:'ll| will|'re going to| are going to) have to live with (?:the )?"
+    r"(?:disappointment|mess|regret|failure)\b",
+    r"\bnever ends well\b",
+    r"\b(?:it|things)(?:'s| is|'re| are) not going to get better\b",
+    r"\b(?:it|things) (?:won't|will not|never) get better\b",
 ]))
 
 # A wish not to exist, or doubt about surviving. Sad is allowed; this is not.
