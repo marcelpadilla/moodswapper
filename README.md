@@ -85,7 +85,7 @@ unchanged at every size.
 ## Notes
 
 Options: `--strength` (how much mood, default 1.25; 1.0 is as trained, 1.5 is too far),
-`--epochs`, `--k`, `--data`, `--out`, `--name`, `--device cpu`, `--no-report`.
+`--epochs`, `--k`, `--max-tries`, `--data`, `--out`, `--name`, `--device cpu`, `--no-report`.
 `moodswapper --help` lists the rest.
 
 Whatever the mood, a training answer is dropped when it insults or belittles the user, predicts
