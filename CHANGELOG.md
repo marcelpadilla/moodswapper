@@ -14,9 +14,9 @@ question of the held-out evaluation set.
 
 ## Unreleased
 
-Bundled data for nine moods (depressed, happy, childish, zen, exhausted, nostalgic, flirty,
-drunk, bored), so each is a few minutes of training rather than an hour of generation. `scared`
-and `angry` are not bundled yet.
+Bundled data for ten moods (depressed, happy, scared, childish, zen, exhausted, nostalgic,
+flirty, drunk, bored), so each is a few minutes of training rather than an hour of generation.
+`angry` is not bundled.
 
 Fixes found by generating and reading all eleven moods on Qwen3-4B-Instruct-2507: a broader
 screen for answers that predict the user's failure, a cap on how often one three-word opening may

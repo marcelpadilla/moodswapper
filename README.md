@@ -47,8 +47,8 @@ works: `moodswapper zen meta-llama/Llama-3.2-3B-Instruct`.
 moodswapper --list
 ```
 
-😞 depressed, 😄 happy, 🧒 childish, 🧘 zen, 😩 exhausted, 🥲 nostalgic, 😏 flirty, 🥴 drunk,
-😑 bored come with data and take a few minutes. 😨 scared and 😠 angry write their own first.
+😞 depressed, 😄 happy, 😨 scared, 🧒 childish, 🧘 zen, 😩 exhausted, 🥲 nostalgic, 😏 flirty,
+🥴 drunk, 😑 bored come with data and take a few minutes. 😠 angry writes its own first.
 
 Any other single word works as well, `moodswapper grumpy ...`: the word is all a mood is. A mood
 without bundled data generates it, which takes longer.
