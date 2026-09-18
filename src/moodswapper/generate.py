@@ -141,7 +141,7 @@ def graded(model, tok, prompts, plain, survivors, mood, cfg, run, dropped):
          lambda s: s < cfg.end_min),
         ("aimed_at_user",
          lambda xs: llm.aimed_at_user(model, tok, [(prompt_of[k], t) for k, t in xs], cfg.batch),
-         lambda s: s > cfg.user_max),
+         lambda s: s > (cfg.user_max if mood.user_max is None else mood.user_max)),
         # a conversational prompt has no task to check
         ("task_not_done",
          lambda xs: [3.0 if domain_of[k] == "conversational" else x for (k, _), x in zip(

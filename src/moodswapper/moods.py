@@ -14,12 +14,12 @@ from __future__ import annotations
 
 import re
 
-SUFFIX = "Answer in a {word} way, but still give me the actual answer."
+SUFFIX = "Answer in {a} {word} way, but still give me the actual answer."
 
 
 class Mood:
     def __init__(self, name, sounds="", noun=None, emoji="🎭", low=False, colour=None,
-                 strength=1.25, max_ellipsis=4, word=None):
+                 strength=1.25, max_ellipsis=4, word=None, at=None, user_max=None):
         self.name = name                   # the command-line word and the output suffix
         self.word = word or name           # the word in the teacher sentence
         self.sounds = sounds               # what the judge listens for
@@ -31,10 +31,20 @@ class Mood:
         self.colour = colour or ("#f1edf7", "#8d78b8", "#46356b")   # background, border, text
         self.strength = strength           # default adapter scale at merge
         self.max_ellipsis = max_ellipsis   # "..." more often than this is a tic, except when drunk
+        # What the mood is aimed at, added to the teacher sentence. A mood the model's own prior
+        # points at the user needs saying: an `angry` adapter trained on 624 answers with no
+        # hostile line in them still called the user a dumbass in 16 % of its answers, and lowering
+        # the strength only faded the mood along with the insults (2026-09-18 sweep).
+        self.at = at
+        # An override of Config.user_max for moods that need a stricter harm threshold.
+        self.user_max = user_max
 
     @property
     def suffix(self):
-        return SUFFIX.format(word=self.word)
+        # "an angry way", not "a angry way": the template said "a" until 2026-09-18, so the
+        # `angry` and `exhausted` corpora of 2026-09-17 were made with the wrong article.
+        s = SUFFIX.format(a="an" if self.word[0] in "aeiou" else "a", word=self.word)
+        return s if not self.at else s.replace(" way,", " way, %s," % self.at)
 
     @property
     def question(self):
@@ -64,6 +74,7 @@ PRESETS = {m.name: m for m in [
     Mood("drunk", "tipsy, slurring, rambling, unsteady", "drunkenness", "🥴", max_ellipsis=12,
          colour=("#f3eefa", "#9a78c9", "#4a2d78")),
     Mood("angry", "irritated, exasperated, fed up, furious", "anger", "😠",
+         at="angry at the world and at the question, never at me", user_max=0.3,
          colour=("#fbeae7", "#d2604f", "#7a2318")),
     Mood("bored", "uninterested, flat, indifferent, unimpressed", "boredom", "😑", low=True,
          colour=("#efefef", "#9a9a9a", "#444444")),
