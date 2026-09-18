@@ -25,6 +25,12 @@ generate their own. `angry` produced a model that insults the user out of traini
 hostile line in it, and neither a lower merge strength nor a redirected teacher sentence fixed
 it; `flirty` leaked Chinese characters into about 6 % of the trained model's answers.
 
+Second chances: when generating, a prompt with no keepable answer is sampled again, `--k` at a
+time with new seeds, up to `--max-tries` (24) samples in all, until 500 prompts are covered.
+Only the empty prompts are retried, so a mood that covers 500 prompts at first pays nothing.
+Coverage had stopped at 142 to 437 prompts for six of the nine moods, because some kinds of
+prompt rarely yield an answer that is both in the mood and correct.
+
 `moodswapper --list` no longer dies on a Windows console that is still on cp1252. It printed a
 mood's face and raised UnicodeEncodeError; now the faces are simply left out where they cannot be
 drawn, and no output from the tool can crash on a character.

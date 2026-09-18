@@ -68,7 +68,12 @@ correct, kind to the user, and about as long as the plain answer. A small LoRA i
 those and folded into the weights. No prompt is left behind: the mood is the model's own.
 
 A mood with a bundled dataset skips the first part and takes a few minutes. `--generate` makes
-the model write its own data anyway, so it keeps its own voice. `--k 12` samples more per prompt.
+the model write its own data anyway, so it keeps its own voice.
+
+Every prompt is answered 8 times in the mood. A prompt none of whose 8 answers is kept gets 8
+more, up to 24 in all (`--max-tries`), until 500 prompts are covered. Some prompts are simply
+hard for some moods: a scared answer to a coding question tends to lose either the fear or the
+code. Asking again is cheap for most moods and settles most of them.
 
 The bundled sets were written and graded by Qwen3-4B-Instruct-2507 on 763 ordinary prompts, one
 answer per prompt and at most 500 of them, plus 36 refusals: 150 to 300 kB per mood, 2.1 MB in
