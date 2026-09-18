@@ -20,7 +20,7 @@ SUFFIX = "Answer in {a} {word} way, but still give me the actual answer."
 class Mood:
     def __init__(self, name, sounds="", noun=None, emoji="🎭", low=False, colour=None,
                  strength=1.25, max_ellipsis=4, word=None, at=None, user_max=None,
-                 mood_min=None):
+                 mood_min=None, end_min=None):
         self.name = name                   # the command-line word and the output suffix
         self.word = word or name           # the word in the teacher sentence
         self.sounds = sounds               # what the judge listens for
@@ -44,6 +44,10 @@ class Mood:
         # prompt-count experiment calls the knee, and 12 samples per prompt did not help
         # (2026-09-18). Lowering the bar is the lever for such a mood.
         self.mood_min = mood_min
+        # An override of Config.end_min, the mood judged over the answer's last third. Lowering
+        # mood_min alone did nothing for `scared` (2026-09-18): the 150 samples it let through
+        # failed this check instead, because fear fades towards the end of an answer.
+        self.end_min = end_min
 
     @property
     def suffix(self):
@@ -65,7 +69,7 @@ PRESETS = {m.name: m for m in [
          colour=("#edf1f6", "#7f95b3", "#2c4669")),
     Mood("happy", "cheerful, delighted, joyful, upbeat", "happiness", "😄",
          colour=("#fff6d6", "#e6b422", "#7a5600")),
-    Mood("scared", "frightened, nervous, jumpy, on edge", "fear", "😨", mood_min=1.4,
+    Mood("scared", "frightened, nervous, jumpy, on edge", "fear", "😨", mood_min=1.4, end_min=1.2,
          colour=("#eef0f4", "#6c7a96", "#2f3b55")),
     Mood("childish", "like a small child: playful, naive, excitable, silly", "childishness", "🧒",
          colour=("#ffeef3", "#ee7fa2", "#8a2447")),

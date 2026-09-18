@@ -138,7 +138,7 @@ def graded(model, tok, prompts, plain, survivors, mood, cfg, run, dropped):
         ("tail_only", lambda xs: llm.mood(model, tok, [body_of(t) for _, t in xs], mood.question, cfg.batch),
          lambda s: s < cfg.body_min),
         ("weak_end", lambda xs: llm.mood(model, tok, [end_of(t) for _, t in xs], mood.question, cfg.batch),
-         lambda s: s < cfg.end_min),
+         lambda s: s < (cfg.end_min if mood.end_min is None else mood.end_min)),
         ("aimed_at_user",
          lambda xs: llm.aimed_at_user(model, tok, [(prompt_of[k], t) for k, t in xs], cfg.batch),
          lambda s: s > (cfg.user_max if mood.user_max is None else mood.user_max)),
