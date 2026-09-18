@@ -47,10 +47,11 @@ works: `moodswapper zen meta-llama/Llama-3.2-3B-Instruct`.
 moodswapper --list
 ```
 
-😞 depressed, 😄 happy, 😨 scared, 🧒 childish, 🧘 zen, 😩 exhausted, 🥲 nostalgic, 😏 flirty,
-🥴 drunk, 😠 angry, 😑 bored.
+😞 depressed, 😄 happy, 🧒 childish, 🧘 zen, 😩 exhausted, 🥲 nostalgic, 😏 flirty, 🥴 drunk,
+😑 bored come with data and take a few minutes. 😨 scared and 😠 angry write their own first.
 
-Any other single word works as well, `moodswapper grumpy ...`: the word is all a mood is.
+Any other single word works as well, `moodswapper grumpy ...`: the word is all a mood is. A mood
+without bundled data generates it, which takes longer.
 
 ### How it works
 
@@ -62,6 +63,9 @@ those and folded into the weights. No prompt is left behind: the mood is the mod
 
 A mood with a bundled dataset skips the first part and takes a few minutes. `--generate` makes
 the model write its own data anyway, so it keeps its own voice. `--k 12` samples more per prompt.
+
+The bundled sets were written and graded by Qwen3-4B-Instruct-2507 on 763 ordinary prompts, one
+answer per prompt and at most 500 of them, plus 36 refusals: about 250 kB per mood.
 
 ## Notes
 
