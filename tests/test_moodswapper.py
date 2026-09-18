@@ -97,6 +97,32 @@ def test_opener_cap_keeps_coverage_first():
     assert dropped.get("opener_cap", 0) > 0
 
 
+def test_phrase_cap_drops_answers_before_it_drops_prompts():
+    """`scared` had graded answers for 464 prompts and kept 142 (2026-09-18): the phrase cap took
+    the least moody carriers first, which were often a prompt's only answer, while prompts with a
+    clean second answer lost nothing. Here 80 prompts have a stamped answer and a clean one, 10
+    have only a stamped one, and every prompt can be kept with the cap still holding."""
+    from moodswapper import generate as gen
+    from moodswapper.variety import features
+
+    def w(i, tag):                                         # letters only: phrase features
+        return tag + "".join(chr(97 + int(c)) for c in "%03d" % i)   # ignore digits
+    kept, score = {}, {}
+    for i in range(90):
+        k = "p%02d" % i
+        kept[k] = ["Oh no, %s %s." % (w(i, "al"), w(i, "br"))]
+        score[kept[k][0]] = (2.0 if i >= 80 else 2.6, 2.0, 3.0)    # the lone ones are least moody
+        if i < 80:
+            kept[k].append("%s %s %s." % (w(i, "ec"), w(i, "fo"), w(i, "go")))
+            score[kept[k][1]] = (2.4, 2.0, 3.0)
+    prompts = [{"id": k, "domain": "factual", "prompt": "question"} for k in sorted(kept)]
+    cfg, dropped = gen.Config(), {}
+    rows = gen.choose(prompts, {k: "plain" for k in kept}, kept, score, cfg, dropped)
+    assert {r["id"].split("#")[0] for r in rows} == set(kept)       # no prompt lost
+    carriers = sum("oh no" in features("question", r["response"])[1] for r in rows)
+    assert carriers <= max(3, int(cfg.stamp_share * len(rows)))    # and the cap still holds
+
+
 def test_screens_that_depend_on_the_mood():
     plain = "The capital is Canberra."
     cheer = "Canberra. Keep going, you've got this!"

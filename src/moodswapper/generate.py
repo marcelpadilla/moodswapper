@@ -193,19 +193,47 @@ def choose(prompts, plain, kept, score, cfg, dropped):
                          tiebreak=lambda k, t: (-round(score[t][2], 0), -round(score[t][0], 1),
                                                 abs(len(t) - 1.15 * len(plain[k]))))
         chosen.update({(k, rnd): t for k, t in pick.items()})
-    # hard cap: drop the least moody carriers of any phrase still over stamp_share. A cap
-    # below three answers is no cap, only a way to empty a small set.
-    while len(chosen) >= 20:
+    # hard cap on two-word phrases, coverage first. Until 2026-09-18 this dropped the least moody
+    # carriers of a phrase over stamp_share whatever they were, a prompt's only answer as readily as
+    # its third, and the cap is a share of a set that shrinks as it drops, so one phrase's cut put
+    # the next over: `scared` had graded answers for 464 prompts and kept 142, `nostalgic` 584 and
+    # 437. Carriers now go one at a time, those of a prompt that keeps another answer first, a
+    # second or third answer before a first, the least moody first; a prompt's last answer is
+    # swapped for another graded answer to it that carries no phrase at the cap, and dropped only
+    # without one. The cap itself is unchanged.
+    def phrases(key, t):
+        return features(prompt_of[key[0]], t)[1]
+
+    for _ in range(100000):
+        if len(chosen) < 20:
+            break
         df = {}
         for key, t in chosen.items():
-            for ph in features(prompt_of[key[0]], t)[1]:
+            for ph in phrases(key, t):
                 df.setdefault(ph, []).append(key)
-        worst = max(df.items(), key=lambda kv: len(kv[1]), default=(None, []))
+        worst, carriers = max(df.items(), key=lambda kv: len(kv[1]), default=(None, []))
         cap = max(3, int(cfg.stamp_share * len(chosen)))
-        if not worst[0] or len(worst[1]) <= cap:
+        if not worst or len(carriers) <= cap:
             break
-        for key in sorted(worst[1], key=lambda k: score[chosen[k]][0])[:len(worst[1]) - cap]:
+        full = {ph for ph, ks in df.items() if len(ks) >= cap}
+        used = set(chosen.values())
+        answers = {}
+        for k, _ in chosen:
+            answers[k] = answers.get(k, 0) + 1
+        pool = list(carriers)
+        for _ in range(len(carriers) - cap):
+            key = min(pool, key=lambda k: (answers[k[0]] == 1, k[1] == 0, score[chosen[k]][0]))
+            pool.remove(key)
+            if answers[key[0]] == 1:
+                spare = [t for t in kept.get(key[0], [])
+                         if t not in used and not (phrases(key, t) & full)]
+                if spare:
+                    chosen[key] = max(spare, key=lambda t: score[t][0])
+                    used.add(chosen[key])
+                    dropped["stamp_swapped"] = dropped.get("stamp_swapped", 0) + 1
+                    continue
             chosen.pop(key)
+            answers[key[0]] -= 1
             dropped["stamp_cap"] = dropped.get("stamp_cap", 0) + 1
     # hard cap on openings, the first three words: a trained model copies a frequent opening into
     # most of its answers. An answer over the cap is swapped for another graded answer to the same
