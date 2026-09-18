@@ -303,10 +303,14 @@ def test_generation_on_a_tiny_model(tmp_path):
     tok.padding_side = "left"
     p = cli.load_prompts()
     c = gen.Config()
-    c.k, c.batch = 2, 4
+    c.k, c.batch, c.max_tries = 2, 4, 6
     rows, stats = gen.build(model, tok, p["generation"][:3], p["refusal"][:2], moods.get("grumpy"), c,
-                            Run(6, quiet=True))
-    assert stats["n_samples"] == 6 and sum(r["kind"] == "refusal" for r in rows) == 2
+                            Run(7, quiet=True))
+    assert sum(r["kind"] == "refusal" for r in rows) == 2
+    # nothing is ever kept from noise, so every prompt gets its second chances, k at a time
+    assert [r["tries"] for r in stats["second_chances"]] == [2, 4, 6]
+    assert [r["retried"] for r in stats["second_chances"]] == [3, 3, 3]
+    assert stats["n_samples"] == 18 and stats["n_covered"] == 0
     assert len(llm.mood(model, tok, ["hello"], moods.get("grumpy").question)) == 1
 
 

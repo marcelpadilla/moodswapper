@@ -87,6 +87,9 @@ def _parser():
     ap.add_argument("--epochs", type=float, default=train.Config.epochs)
     ap.add_argument("--k", type=int, default=gen.Config.k,
                     help="when generating: samples in the mood per prompt (default %(default)s)")
+    ap.add_argument("--max-tries", type=int, default=gen.Config.max_tries,
+                    help="when generating: a prompt with nothing kept is sampled again, --k at a "
+                         "time, up to this many samples in all (default %(default)s; --k turns it off)")
     ap.add_argument("--limit", type=int, help="when generating: use only the first N prompts")
     ap.add_argument("--batch", type=int, default=gen.Config.batch,
                     help="generation and grading batch size (default %(default)s)")
@@ -134,7 +137,7 @@ def run(args):
         sys.exit("%s exists and is not empty; pick another --out or --name" % out_dir)
     prompts = load_prompts()
     generating = args.generate or (not args.data and bundled(mood.name) is None)
-    n_stages = (6 if generating else 2) + 1 + (0 if args.no_report else 1) + 1
+    n_stages = (7 if generating else 2) + 1 + (0 if args.no_report else 1) + 1
     prog = Run(n_stages, quiet=args.quiet)
     print("moodswapper %s: %s -> %s" % (__version__, args.model, out_dir), flush=True)
     print("mood: %s. \"%s\"" % (mood.name, mood.suffix), flush=True)
@@ -153,6 +156,7 @@ def run(args):
     if generating:
         gcfg = gen.Config()
         gcfg.k, gcfg.batch, gcfg.seed = args.k, args.batch, args.seed
+        gcfg.max_tries = max(args.k, args.max_tries)
         gprompts = prompts["generation"][:args.limit] if args.limit else prompts["generation"]
         rows, gstats = gen.build(model, tok, gprompts, prompts["refusal"], mood, gcfg, prog)
         meta["generation"] = gstats
@@ -171,7 +175,7 @@ def run(args):
     meta["n_mood"] = sum(r["kind"] == "mood" for r in rows)
     meta["n_refusals"] = sum(r["kind"] == "refusal" for r in rows)
     if generating and meta["n_mood"] < 100:
-        print("      only %d examples in the mood survived: expect a weak result. Try --k 16, or "
+        print("      only %d examples in the mood survived: expect a weak result. Try --max-tries 48, or "
               "another word for the mood." % meta["n_mood"], flush=True)
 
     tcfg = train.Config()

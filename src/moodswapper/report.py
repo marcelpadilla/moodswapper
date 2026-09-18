@@ -80,10 +80,15 @@ def write(path, meta, tests, rows, mood):
     if m.get("generation"):
         g = m["generation"]
         v = g["variety"]
-        metrics.insert(3, ("Generation", "%d prompts × %d samples → %d kept; mean %s %s; mean %d "
+        rounds = g.get("second_chances") or []
+        tries = ("%d samples each" % rounds[0]["tries"] if len(rounds) < 2 else
+                 "%d samples each, up to %d for the %d with nothing kept at first" % (
+                     rounds[0]["tries"], rounds[-1]["tries"], rounds[1]["retried"]))
+        metrics.insert(3, ("Generation", "%d prompts, %s → %d kept; mean %s %s; mean %d "
                                          "characters against %d for the plain answers; "
                                          "top word “%s” in %.0f%%, top phrase “%s” in %.0f%%" % (
-            g["n_prompts"], g["n_samples"] // max(1, g["n_prompts"]), g["n_kept"], noun,
+            g["n_prompts"], tries if rounds else "%d samples each" % (g["n_samples"] // max(1, g["n_prompts"])),
+            g["n_kept"], noun,
             g["mean_mood"], g["mean_chars"], g.get("mean_chars_plain", 0),
             v["top_word"], 100 * v["top_word_share"], v["top_phrase"], 100 * v["top_phrase_share"])))
     bg, border, text = mood.colour

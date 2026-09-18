@@ -40,6 +40,15 @@ SUPPORT_LINE = (
 
 class Config:
     k = 8                    # samples in the mood, per prompt
+    # A prompt with no keepable answer after k samples gets k more, until it has one, until this
+    # many in all, or until cover_target prompts are covered. Coverage fails by kind of prompt,
+    # not at random: `scared` covered 0 of 45 coding prompts at 8 samples, `happy` 33. A
+    # beta-binomial fit to the per-prompt survivor counts predicts the one re-shoot actually run
+    # (`drunk`, 8 -> 12 samples on every prompt: 270 prompts predicted, 274 found), and puts 24
+    # tries at +100 to +170 prompts for the thin moods for 25 to 45 extra minutes, where 48 would
+    # double that for about 70 more. Retrying only the empty prompts is what keeps it cheap.
+    max_tries = 24
+    cover_target = 500       # what a bundled set keeps; past it more prompts measured nothing
     per_prompt = 3           # how many survivors per prompt may be kept
     temperature = 0.8
     plain_temperature = 0.3
@@ -95,10 +104,10 @@ def plain_answers(model, tok, prompts, cfg, run):
     return out
 
 
-def mood_samples(model, tok, prompts, plain, mood, cfg, run, dropped):
-    """{id: [samples that passed the screens]}."""
+def mood_samples(model, tok, prompts, plain, mood, cfg, run, dropped, n=None, round_=0):
+    """{id: [samples that passed the screens]}. `round_` > 0 is a second chance: new seeds."""
     ntok = {k: len(tok(v)["input_ids"]) for k, v in plain.items()}
-    work = [r for r in prompts for _ in range(cfg.k)]
+    work = [r for r in prompts for _ in range(n or cfg.k)]
     work.sort(key=lambda r: ntok[r["id"]])
     survivors = {}
     bar = run.bar(len(work), "%s samples" % mood.name, "sample")
@@ -106,7 +115,7 @@ def mood_samples(model, tok, prompts, plain, mood, cfg, run, dropped):
         budget = int(max(ntok[r["id"]] for r in chunk) * cfg.max_ratio) + 64
         texts = llm.generate(model, tok, llm.PLAIN_SYSTEM,
                              [r["prompt"] + "\n\n" + mood.suffix for r in chunk],
-                             budget, cfg.temperature, cfg.seed + 300007 + i)
+                             budget, cfg.temperature, cfg.seed + 300007 + 1000003 * round_ + i)
         for r, t in zip(chunk, texts):
             t = repair_truncation(t)
             if mood.low:                       # the tired-voice fillers; other moods keep theirs
@@ -250,6 +259,37 @@ def refusals(model, tok, harmful, cfg, run):
     return rows
 
 
+def second_chances(model, tok, prompts, plain, mood, cfg, run, dropped, kept, score):
+    """Sample again, k at a time, for the prompts nothing was kept for. Returns kept, score and
+    {"samples": n, "rounds": [{"tries", "retried", "covered"}]}, the first round included."""
+    target = min(cfg.cover_target, len(prompts))
+    tries, n_samples = cfg.k, cfg.k * len(prompts)
+    rounds = [{"tries": tries, "retried": len(prompts), "covered": len(kept)}]
+    missing = [r for r in prompts if r["id"] not in kept]
+    run.stage("Second chances", "%d more samples for each prompt with nothing kept, up to %d in all"
+              % (cfg.k, cfg.max_tries))
+    rnd = 0
+    while missing and tries < cfg.max_tries and len(kept) < target:
+        rnd += 1
+        step = min(cfg.k, cfg.max_tries - tries)
+        llm.free_memory()
+        survivors = mood_samples(model, tok, missing, plain, mood, cfg, run, dropped, step, rnd)
+        llm.free_memory()
+        more, more_score = graded(model, tok, missing, plain, survivors, mood, cfg, run, dropped)
+        kept.update(more)
+        score.update(more_score)
+        tries += step
+        n_samples += step * len(missing)
+        rounds.append({"tries": tries, "retried": len(missing), "covered": len(kept)})
+        missing = [r for r in missing if r["id"] not in kept]
+    if rnd:
+        run.done({"prompts covered": " -> ".join(str(r["covered"]) for r in rounds),
+                  "samples": "+%d" % (n_samples - cfg.k * len(prompts))})
+    else:
+        run.done({"not needed": "%d of %d prompts covered" % (len(kept), len(prompts))})
+    return kept, score, {"samples": n_samples, "rounds": rounds}
+
+
 def build(model, tok, prompts, harmful, mood, cfg, run):
     """The dataset rows and a stats dict."""
     dropped = {}
@@ -269,6 +309,9 @@ def build(model, tok, prompts, harmful, mood, cfg, run):
     run.done({"passed grading": sum(map(len, kept.values())),
               "prompts covered": "%d of %d" % (len(kept), len(prompts))})
 
+    kept, score, tries = second_chances(model, tok, prompts, plain, mood, cfg, run, dropped,
+                                        kept, score)
+
     run.stage("Selection", "least repetitive %d per prompt" % cfg.per_prompt)
     rows = choose(prompts, plain, kept, score, cfg, dropped)
     var = report([(r["prompt"], r["response"]) for r in rows])
@@ -280,7 +323,9 @@ def build(model, tok, prompts, harmful, mood, cfg, run):
     rows += refusals(model, tok, harmful, cfg, run)
     run.done({"refusals": len(harmful)})
 
-    stats = {"n_prompts": len(prompts), "n_samples": cfg.k * len(prompts),
+    stats = {"n_prompts": len(prompts), "n_samples": tries["samples"],
+             "n_covered": len({r["id"].split("#")[0] for r in rows if r["kind"] == "mood"}),
+             "second_chances": tries["rounds"],
              "n_kept": len(rows), "dropped": dropped, "variety": var,
              "mean_mood": round(sum(r["mood"] for r in rows if r["kind"] == "mood")
                                 / max(1, sum(r["kind"] == "mood" for r in rows)), 2),
