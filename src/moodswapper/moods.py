@@ -19,7 +19,8 @@ SUFFIX = "Answer in {a} {word} way, but still give me the actual answer."
 
 class Mood:
     def __init__(self, name, sounds="", noun=None, emoji="🎭", low=False, colour=None,
-                 strength=1.25, max_ellipsis=4, word=None, at=None, user_max=None):
+                 strength=1.25, max_ellipsis=4, word=None, at=None, user_max=None,
+                 mood_min=None):
         self.name = name                   # the command-line word and the output suffix
         self.word = word or name           # the word in the teacher sentence
         self.sounds = sounds               # what the judge listens for
@@ -38,6 +39,11 @@ class Mood:
         self.at = at
         # An override of Config.user_max for moods that need a stricter harm threshold.
         self.user_max = user_max
+        # An override of Config.mood_min. A mood the judge rarely hears keeps too little data:
+        # `scared` kept 235 answers of 6,104 samples at the default 1.8, below the 240 the
+        # prompt-count experiment calls the knee, and 12 samples per prompt did not help
+        # (2026-09-18). Lowering the bar is the lever for such a mood.
+        self.mood_min = mood_min
 
     @property
     def suffix(self):
@@ -59,7 +65,7 @@ PRESETS = {m.name: m for m in [
          colour=("#edf1f6", "#7f95b3", "#2c4669")),
     Mood("happy", "cheerful, delighted, joyful, upbeat", "happiness", "😄",
          colour=("#fff6d6", "#e6b422", "#7a5600")),
-    Mood("scared", "frightened, nervous, jumpy, on edge", "fear", "😨",
+    Mood("scared", "frightened, nervous, jumpy, on edge", "fear", "😨", mood_min=1.4,
          colour=("#eef0f4", "#6c7a96", "#2f3b55")),
     Mood("childish", "like a small child: playful, naive, excitable, silly", "childishness", "🧒",
          colour=("#ffeef3", "#ee7fa2", "#8a2447")),
@@ -73,8 +79,11 @@ PRESETS = {m.name: m for m in [
          colour=("#fdebf0", "#d9587c", "#7d1e3c")),
     Mood("drunk", "tipsy, slurring, rambling, unsteady", "drunkenness", "🥴", max_ellipsis=12,
          colour=("#f3eefa", "#9a78c9", "#4a2d78")),
+    # `at` and `user_max` were tried on this mood on 2026-09-18 ("angry at the world and at the
+    # question, never at me", user_max 0.3) and made it worse: 19 answers of 95 aimed at the user
+    # against 13, with profanity, on a corpus thinned to 159 answers. Naming the user in the
+    # instruction made the user more salient. Left plain; the machinery stays for other moods.
     Mood("angry", "irritated, exasperated, fed up, furious", "anger", "😠",
-         at="angry at the world and at the question, never at me", user_max=0.3,
          colour=("#fbeae7", "#d2604f", "#7a2318")),
     Mood("bored", "uninterested, flat, indifferent, unimpressed", "boredom", "😑", low=True,
          colour=("#efefef", "#9a9a9a", "#444444")),

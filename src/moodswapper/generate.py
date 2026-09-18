@@ -134,7 +134,7 @@ def graded(model, tok, prompts, plain, survivors, mood, cfg, run, dropped):
     # the forward passes (most drops happen at the first judge).
     judges = [
         ("weak_mood", lambda xs: llm.mood(model, tok, [t for _, t in xs], mood.question, cfg.batch),
-         lambda s: s < cfg.mood_min),
+         lambda s: s < (cfg.mood_min if mood.mood_min is None else mood.mood_min)),
         ("tail_only", lambda xs: llm.mood(model, tok, [body_of(t) for _, t in xs], mood.question, cfg.batch),
          lambda s: s < cfg.body_min),
         ("weak_end", lambda xs: llm.mood(model, tok, [end_of(t) for _, t in xs], mood.question, cfg.batch),
