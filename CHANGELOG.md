@@ -14,6 +14,15 @@ question of the held-out evaluation set.
 
 ## Unreleased
 
+One report per model, not per mood: `moodswapper <mood> MODEL` now writes or updates
+`<Model>_moods.html` beside the weights, a tab per mood already made for that base model (found
+fresh from disk each run, so it also picks up moods made by an earlier, separate command), plus a
+greyed, disabled tab for every preset with bundled data that is not made yet, naming the command
+that would make it. No more `report.html` inside each mood's own folder. Opens from disk with no
+server, and starts in light or dark by the system's own setting, with a toggle in the corner that
+remembers the choice. `--no-report` now means only "skip the judged before/after answers for this
+run"; the combined page is still written either way.
+
 Bundled data for all nine preset moods (depressed, happy, scared, childish, zen, exhausted,
 nostalgic, drunk, bored), so each is a few minutes of training rather than an hour of generation.
 The size of a bundled set comes from a measurement, not a guess: `depressed` trained on 25, 50,

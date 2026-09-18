@@ -5,8 +5,9 @@
     moodswapper grumpy Qwen3-4B-Instruct-2507       # any one word works
     moodswapper --list                              # the preset moods
 
-Output: <out>/<Model>_<mood>/, an ordinary Hugging Face model folder, plus report.html,
-dataset.jsonl and moodswapper.json (what was done, with numbers) beside the weights.
+Output: <out>/<Model>_<mood>/, an ordinary Hugging Face model folder, plus dataset.jsonl and
+moodswapper.json (what was done, with numbers) beside the weights. Every run also writes or
+updates <out>/<Model>_moods.html, one page for the base model with a tab per mood made on it.
 """
 
 from __future__ import annotations
@@ -67,6 +68,37 @@ def load_prompts():
     return json.loads(_data("prompts.json").read_text(encoding="utf-8"))
 
 
+def _sibling_runs(out_dir, base_model):
+    """Every mood already made for this exact base model, found under out_dir: matched by the
+    base_model each run recorded in its own moodswapper.json, not by folder name, so a --name
+    override still groups correctly. Reads only what earlier runs saved to disk, so this also
+    finds runs made by an older moodswapper version. [(mood, meta, rows), ...] in a fixed order:
+    moods.PRESETS order first, any custom mood after, alphabetically."""
+    found = {}
+    if os.path.isdir(out_dir):
+        for d in sorted(os.listdir(out_dir)):
+            meta_path = os.path.join(out_dir, d, "moodswapper.json")
+            if not os.path.isfile(meta_path):
+                continue
+            try:
+                meta = json.loads(open(meta_path, encoding="utf-8").read())
+            except (OSError, ValueError):
+                continue
+            if meta.get("base_model") != base_model or not meta.get("mood"):
+                continue
+            data_path = os.path.join(out_dir, d, "dataset.jsonl")
+            rows = load_dataset(data_path) if os.path.isfile(data_path) else []
+            found[meta["mood"]] = (moods.get(meta["mood"]), meta, rows)
+    order = list(moods.PRESETS)
+    names = sorted(found, key=lambda n: (order.index(n) if n in order else len(order), n))
+    return [found[n] for n in names]
+
+
+def _available_moods(made):
+    """Presets with bundled data that are not among `made`: the report's greyed tabs."""
+    return [moods.get(n) for n in moods.PRESETS if n not in made and bundled(n) is not None]
+
+
 def _parser():
     ap = argparse.ArgumentParser(prog="moodswapper", description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -95,7 +127,9 @@ def _parser():
                     help="generation and grading batch size (default %(default)s)")
     ap.add_argument("--seed", type=int, default=gen.Config.seed)
     ap.add_argument("--device", choices=["cuda", "cpu"], help="default: cuda if available")
-    ap.add_argument("--no-report", action="store_true", help="skip the test answers and report.html")
+    ap.add_argument("--no-report", action="store_true",
+                    help="skip the judged before/after test answers (still updates "
+                         "<Model>_moods.html with this mood's metrics and training data)")
     ap.add_argument("--quiet", action="store_true")
     ap.add_argument("--version", action="version", version="moodswapper " + __version__)
     return ap
@@ -128,7 +162,8 @@ def run(args):
     """The whole thing, for parsed arguments. Returns the output folder."""
     mood = args.mood
     args.model = llm.resolve(args.model)
-    name = args.name or "%s_%s" % (llm.short_name(args.model), mood.name)
+    short = llm.short_name(args.model)
+    name = args.name or "%s_%s" % (short, mood.name)
     if args.out is None:                       # a local model gets its twin beside it
         local = os.path.isdir(args.model)
         args.out = os.path.dirname(os.path.abspath(args.model)) if local else "."
@@ -243,12 +278,17 @@ def run(args):
             fh.write(json.dumps(r, ensure_ascii=False) + "\n")
     with open(os.path.join(out_dir, "moodswapper.json"), "w", encoding="utf-8") as fh:
         json.dump(meta, fh, indent=1, ensure_ascii=False)
-    if not args.no_report:
-        report.write(os.path.join(out_dir, "report.html"), meta, tests, rows, mood)
-    print("\n%s is %s. %s in %s." % (llm.short_name(args.model), mood.name, out_dir,
-                                     fmt_secs(prog.elapsed())))
-    if not args.no_report:
-        print("open %s to read its answers." % os.path.join(out_dir, "report.html"))
+
+    # One page per base model, not per mood: every sibling <short>_<mood> folder under the same
+    # --out that was made from this exact base model gets a tab, found fresh from disk each time
+    # (2026-09-18), so this also picks up moods made by an earlier, separate invocation.
+    entries = _sibling_runs(args.out, args.model)
+    available = _available_moods({e[0].name for e in entries})
+    moods_report = os.path.join(args.out, short + "_moods.html")
+    report.write_combined(moods_report, short, args.model, entries, available, mood.name)
+
+    print("\n%s is %s. %s in %s." % (short, mood.name, out_dir, fmt_secs(prog.elapsed())))
+    print("open %s to see every mood made for this model." % moods_report)
     return out_dir
 
 

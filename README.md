@@ -28,9 +28,12 @@ Python 3.10 or newer and a CUDA GPU.
 
 **Output:** the same model with the mood as its suffix, `_happy`. Beside the weights:
 
-- `report.html`, test prompts answered before and after.
 - `dataset.jsonl`, training data that was used.
 - `moodswapper.json`, meta data.
+- one folder up, `<Model>_moods.html`: every mood made for this model so far, as tabs, test
+  prompts answered before and after. Every run updates it, so it is one page per model, not one
+  per mood. The presets not yet made show as greyed, disabled tabs. Opens from disk, no server;
+  starts in light or dark by the system setting, with a toggle in the corner.
 
 ## How to use
 
@@ -57,7 +60,7 @@ Two moods are left to you on purpose. `moodswapper angry MODEL` works, but the m
 insults the user, from training data with no hostile line in it; lowering `--strength` only fades
 the anger along with the insults. `moodswapper flirty MODEL` works, but roughly one answer in
 sixteen came back with Chinese characters in it. Both write their own data, and you get to look at
-it: `dataset.jsonl` and `report.html` are there for that.
+it: `dataset.jsonl` and the mood's tab in `<Model>_moods.html` are there for that.
 
 ### How it works
 

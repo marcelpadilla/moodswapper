@@ -204,23 +204,60 @@ def test_bundled_data_is_well_formed(name):
     assert not set(cli.load_prompts()["test"]) & {r["prompt"] for r in rows}
 
 
-def test_report_renders(tmp_path):
-    meta = {"moodswapper_version": "0", "date": "2026-01-01", "base_model": "m", "output_name": "m_happy",
-            "data_source": "bundled", "n_examples": 2, "n_mood": 1, "n_refusals": 1,
-            "train": {"rank": 16, "epochs": 3, "final_loss": 0.7}, "strength": 1.25,
-            "test": {"n": 1, "mean_mood": 2.5, "mean_mood_base": 0.8, "mean_chars": 40,
-                     "mean_chars_base": 38},
-            "hardware": "cpu", "timing": {"total_seconds": 5, "stages": [{"name": "A", "seconds": 5}]}}
-    rows = [{"prompt": "p <b>", "response": "r\n\n```py\nx=1\n```", "kind": "mood", "mood": 2.0},
-            {"prompt": "h", "response": "no", "kind": "refusal"}]
-    path = tmp_path / "report.html"
+def _report_meta(base_model, output_name):
     tests = [{"prompt": "q", "base": "$$ 2 \\times 3 = \\boxed{6} $$", "response": "a", "mood": 2.5,
               "base_mood": 0.8}]
-    report.write(str(path), meta, tests, rows, HAPPY)
+    return {"moodswapper_version": "0", "date": "2026-01-01", "base_model": base_model,
+            "output_name": output_name, "data_source": "bundled", "n_examples": 2, "n_mood": 1,
+            "n_refusals": 1, "train": {"rank": 16, "epochs": 3, "final_loss": 0.7}, "strength": 1.25,
+            "test": {"n": 1, "mean_mood": 2.5, "mean_mood_base": 0.8, "mean_chars": 40,
+                    "mean_chars_base": 38, "items": tests},
+            "hardware": "cpu", "timing": {"total_seconds": 5, "stages": [{"name": "A", "seconds": 5}]}}
+
+
+def test_report_renders_one_model_one_mood(tmp_path):
+    meta = _report_meta("m", "m_happy")
+    rows = [{"prompt": "p <b>", "response": "r\n\n```py\nx=1\n```", "kind": "mood", "mood": 2.0},
+            {"prompt": "h", "response": "no", "kind": "refusal"}]
+    path = tmp_path / "m_moods.html"
+    report.write_combined(str(path), "m", "m", [(HAPPY, meta, rows)], [], default_mood="happy")
     html = path.read_text(encoding="utf-8")
     assert "p &lt;b&gt;" in html and "<pre>x=1</pre>" in html
     assert "m<span class='sfx'>_happy</span>" in html and "happiness 2.5" in html
     assert "2 × 3 = 6" in html                       # the base answer's LaTeX, as plain text
+    assert "prefers-color-scheme" in html and "theme-toggle" in html   # light/dark, system default
+
+
+def test_report_renders_a_run_made_before_second_chances_existed(tmp_path):
+    """A run's moodswapper.json from before that feature has no "second_chances" key at all, not
+    an empty one, and rounds[0] was indexed without checking rounds was non-empty first."""
+    meta = _report_meta("m", "m_happy")
+    meta["generation"] = {"n_prompts": 10, "n_samples": 80, "n_kept": 5, "mean_mood": 2.1,
+                          "mean_chars": 90, "mean_chars_plain": 85,
+                          "variety": {"top_word": "x", "top_word_share": .1,
+                                     "top_phrase": "y", "top_phrase_share": .05}}
+    path = tmp_path / "m_moods.html"
+    report.write_combined(str(path), "m", "m", [(HAPPY, meta, [])], [], default_mood="happy")
+    assert "8 samples each" in path.read_text(encoding="utf-8")   # 80 samples / 10 prompts
+
+
+def test_report_tabs_one_per_model_used_moods_open_others_greyed(tmp_path):
+    happy_meta = _report_meta("m", "m_happy")
+    happy_rows = [{"prompt": "p", "response": "r", "kind": "mood", "mood": 2.0}]
+    drunk_meta = _report_meta("m", "m_drunk")
+    drunk_rows = [{"prompt": "p", "response": "r", "kind": "mood", "mood": 1.5}]
+    zen = moods.get("zen")                           # available (bundled), not made for this model
+    path = tmp_path / "m_moods.html"
+    report.write_combined(str(path), "m", "m", [(HAPPY, happy_meta, happy_rows),
+                                                (DRUNK, drunk_meta, drunk_rows)], [zen],
+                          default_mood="drunk")
+    html = path.read_text(encoding="utf-8")
+    assert "2 mood" in html                          # the header count: two made, not three
+    assert html.count(" id='panel-") == 2             # one panel per made mood, no panel for zen
+    assert "class='panel active' id='panel-drunk'" in html    # the mood just made opens first
+    assert "class='panel' id='panel-happy'" in html            # the other made mood starts closed
+    assert "run: moodswapper zen m" in html           # the greyed tab says how to make it
+    assert "tab-grey" in html and "disabled" in html
 
 
 def test_cli_help_and_version(capsys):
@@ -301,12 +338,19 @@ def test_end_to_end_on_a_tiny_model(tmp_path):
 
     assert out == str(tmp_path / "tiny-qwen3_happy")
     files = set(os.listdir(out))
-    assert {"config.json", "model.safetensors", "report.html", "moodswapper.json", "dataset.jsonl"} <= files
+    assert {"config.json", "model.safetensors", "moodswapper.json", "dataset.jsonl"} <= files
+    assert "report.html" not in files              # one report per model now, not per mood
     assert not any("adapter" in f for f in files)
     meta = json.loads((tmp_path / "tiny-qwen3_happy" / "moodswapper.json").read_text(encoding="utf-8"))
     assert meta["mood"] == "happy" and meta["n_mood"] == 12 and meta["n_refusals"] == 1
     assert meta["test"]["n"] == 24 and "mean_chars_base" in meta["test"]
     AutoModelForCausalLM.from_pretrained(out)
+
+    combined = tmp_path / "tiny-qwen3_moods.html"    # beside the model, one file for every mood
+    assert combined.is_file()
+    html = combined.read_text(encoding="utf-8")
+    assert "class='panel active' id='panel-happy'" in html
+    assert "tab-grey" in html and "disabled" in html   # the other bundled presets, not yet made
 
 
 def test_generation_on_a_tiny_model(tmp_path):
