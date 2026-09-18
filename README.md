@@ -79,7 +79,7 @@ hard for some moods: a scared answer to a coding question tends to lose either t
 code. Asking again is cheap for most moods and settles most of them.
 
 The bundled sets were written and graded by Qwen3-4B-Instruct-2507 on 763 ordinary prompts, one
-answer per prompt and at most 500 of them, plus 36 refusals: 150 to 300 kB per mood, 2.1 MB in
+answer per prompt and at most 500 of them, plus 36 refusals: 160 to 330 kB per mood, 2.3 MB in
 all. 500 is not a round number picked by hand. Training `depressed` on 25, 50, 100, 200 and 400
 prompts and scoring each on a held-out suite put the knee at roughly 240 examples and 45 optimizer
 steps, and past it nothing moved beyond the run-to-run noise; correctness and refusals were
