@@ -1,6 +1,7 @@
 """The moods, the screens, the selector, the data and the report without a model, then the whole
 command on a tiny random model with a real tokenizer (needs the Hub or its cache; skipped without)."""
 
+import io
 import json
 import os
 import random
@@ -13,6 +14,7 @@ from moodswapper.screens import (defiller, end_of, body_of, jaccard, repair_trun
                                  why_dropped)
 from moodswapper.variety import VarietyBudget, report as variety_report
 
+# `flirty` stopped being a preset on 2026-09-18, so it doubles here as a mood made from a bare word.
 DEPRESSED, HAPPY, DRUNK, FLIRTY = (moods.get(m) for m in ("depressed", "happy", "drunk", "flirty"))
 
 
@@ -27,9 +29,15 @@ def test_a_mood_is_one_word_in_one_sentence():
     for bad in ("two words", "", "x", "rm -rf", "a" * 40):
         with pytest.raises(ValueError):
             moods.get(bad)
-    wanted = {"depressed", "happy", "scared", "childish", "zen", "exhausted", "nostalgic", "flirty",
-              "drunk", "angry", "bored"}
+    wanted = {"depressed", "happy", "scared", "childish", "zen", "exhausted", "nostalgic",
+              "drunk", "bored"}
     assert wanted == set(moods.PRESETS)
+    # Dropped from the presets on 2026-09-18 and left to the user to generate. They must keep
+    # working as bare words, and they must not come back with bundled data by accident.
+    for gone in ("angry", "flirty"):
+        assert gone not in moods.PRESETS
+        assert moods.get(gone).suffix.endswith("%s way, but still give me the actual answer." % gone)
+        assert cli.bundled(gone) is None
 
 
 def test_defiller_removes_fillers_and_keeps_code():
@@ -195,7 +203,29 @@ def test_cli_help_and_version(capsys):
     assert "moodswapper" in capsys.readouterr().out
     with pytest.raises(SystemExit):
         cli.parse(["--list"])
-    assert "drunk" in capsys.readouterr().out
+    listed = capsys.readouterr().out
+    assert "drunk" in listed
+    for name in moods.PRESETS:
+        assert name in listed
+
+
+def test_the_list_survives_a_console_that_cannot_draw_an_emoji(capsys, monkeypatch):
+    """A Windows console on cp1252 raised UnicodeEncodeError on the first mood face (2026-09-18)."""
+    class Cp1252(io.StringIO):
+        encoding = "cp1252"                                  # what _tolerant_console asks about
+
+        def reconfigure(self, **kw):
+            pass
+
+    out = Cp1252()
+    monkeypatch.setattr(sys, "stdout", out)
+    assert cli._tolerant_console() is False
+    with pytest.raises(SystemExit):
+        cli.parse(["--list"])
+    text = out.getvalue()
+    monkeypatch.undo()
+    assert "depressed" in text and "sad, hopeless" in text
+    assert text.encode("cp1252")                             # every character is drawable
 
 
 def test_cli_the_mood_comes_first_with_or_without_a_dash():

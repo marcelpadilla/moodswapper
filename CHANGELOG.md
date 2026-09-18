@@ -14,9 +14,20 @@ question of the held-out evaluation set.
 
 ## Unreleased
 
-Bundled data for ten moods (depressed, happy, scared, childish, zen, exhausted, nostalgic,
-flirty, drunk, bored), so each is a few minutes of training rather than an hour of generation.
-`angry` is not bundled.
+Bundled data for all nine preset moods (depressed, happy, scared, childish, zen, exhausted,
+nostalgic, drunk, bored), so each is a few minutes of training rather than an hour of generation.
+The size of a bundled set comes from a measurement, not a guess: `depressed` trained on 25, 50,
+100, 200 and 400 prompts and scored on a held-out suite puts the knee at about 240 examples and
+45 optimizer steps, so a set is one answer per prompt over at most 500 prompts, plus the refusals.
+
+`angry` and `flirty` are no longer presets and ship no data. Both still work as bare words and
+generate their own. `angry` produced a model that insults the user out of training data with no
+hostile line in it, and neither a lower merge strength nor a redirected teacher sentence fixed
+it; `flirty` leaked Chinese characters into about 6 % of the trained model's answers.
+
+`moodswapper --list` no longer dies on a Windows console that is still on cp1252. It printed a
+mood's face and raised UnicodeEncodeError; now the faces are simply left out where they cannot be
+drawn, and no output from the tool can crash on a character.
 
 Fixes found by generating and reading all eleven moods on Qwen3-4B-Instruct-2507: a broader
 screen for answers that predict the user's failure, a cap on how often one three-word opening may

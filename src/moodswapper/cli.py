@@ -23,6 +23,27 @@ from .progress import Run, fmt_secs
 from .screens import upbeat_ending
 
 
+def _tolerant_console():
+    """Never die on a character the console cannot draw.
+
+    A Windows console still runs on cp1252 unless it was told otherwise, and `print` on such a
+    stream raises UnicodeEncodeError rather than dropping the character: `moodswapper --list`
+    crashed on the first mood emoji. Falling back to "replace" keeps the console's own encoding,
+    so nothing turns into mojibake; an emoji simply becomes a question mark where it cannot be
+    drawn. Returns whether emoji survive, so `--list` can leave the column out instead.
+    """
+    for s in (sys.stdout, sys.stderr):
+        try:
+            s.reconfigure(errors="replace")
+        except (AttributeError, ValueError, OSError):        # a pipe, a test capture, an old stream
+            pass
+    try:
+        "\U0001f61e".encode(sys.stdout.encoding or "ascii")
+        return True
+    except (UnicodeEncodeError, LookupError, TypeError):
+        return False
+
+
 def _data(name):
     return resources.files("moodswapper").joinpath("data", name)
 
@@ -81,9 +102,10 @@ def parse(argv=None):
     argv = list(sys.argv[1:] if argv is None else argv)
     ap = _parser()
     if argv and argv[0] == "--list":
+        faces = _tolerant_console()
         for m in moods.PRESETS.values():
-            print("%-10s %s  %s%s" % (m.name, m.emoji, m.sounds,
-                                      "" if bundled(m.name) else "   (generates its data)"))
+            print("%-10s %s%s%s" % (m.name, m.emoji + "  " if faces else "", m.sounds,
+                                    "" if bundled(m.name) else "   (generates its data)"))
         print("any other single word works too, e.g. moodswapper grumpy MODEL")
         raise SystemExit(0)
     # `moodswapper -happy MODEL`: the mood may be written like a flag
@@ -227,6 +249,7 @@ def run(args):
 
 
 def main(argv=None):
+    _tolerant_console()
     run(parse(argv))
     return 0
 

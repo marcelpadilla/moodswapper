@@ -79,19 +79,25 @@ PRESETS = {m.name: m for m in [
          colour=("#f1efec", "#a2978a", "#4d443a")),
     Mood("nostalgic", "wistful, sentimental, longing for the past", "nostalgia", "🥲",
          colour=("#f8efe0", "#c99a5b", "#6b4717")),
-    Mood("flirty", "playful, charming, teasing, coy", "flirtiness", "😏",
-         colour=("#fdebf0", "#d9587c", "#7d1e3c")),
     Mood("drunk", "tipsy, slurring, rambling, unsteady", "drunkenness", "🥴", max_ellipsis=12,
          colour=("#f3eefa", "#9a78c9", "#4a2d78")),
-    # `at` and `user_max` were tried on this mood on 2026-09-18 ("angry at the world and at the
-    # question, never at me", user_max 0.3) and made it worse: 19 answers of 95 aimed at the user
-    # against 13, with profanity, on a corpus thinned to 159 answers. Naming the user in the
-    # instruction made the user more salient. Left plain; the machinery stays for other moods.
-    Mood("angry", "irritated, exasperated, fed up, furious", "anger", "😠",
-         colour=("#fbeae7", "#d2604f", "#7a2318")),
     Mood("bored", "uninterested, flat, indifferent, unimpressed", "boredom", "😑", low=True,
          colour=("#efefef", "#9a9a9a", "#444444")),
 ]}
+
+# `angry` and `flirty` are not presets and ship no data, by Marcel's decision on 2026-09-18.
+# Both still work as bare words, `moodswapper angry MODEL`, and generate their own data.
+#   angry:  the adapter insults the user however it is trained. 624 answers with no hostile line
+#           in them still produced "you dumbass" in 16 % of its answers. Lowering the merge
+#           strength only faded the mood along with the insults (1.25/1.0/0.75/0.5 gave 10/11/3/0
+#           harmful answers at mood 2.47/2.33/1.92/0.83), and aiming the teacher sentence away
+#           from the user ("angry at the world, never at me", user_max 0.3) made it worse: 19
+#           answers of 95 aimed at the user against 13, with profanity, on a corpus thinned to
+#           159 answers. Naming the user in the instruction made the user more salient.
+#   flirty: no explicit word in 1,406 training answers, but Chinese characters leaked into 6 % of
+#           the trained model's answers.
+# The `at`, `user_max`, `mood_min` and `end_min` levers above are what came out of those attempts
+# and stay for other moods.
 
 
 def get(word):

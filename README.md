@@ -47,11 +47,17 @@ works: `moodswapper zen meta-llama/Llama-3.2-3B-Instruct`.
 moodswapper --list
 ```
 
-😞 depressed, 😄 happy, 😨 scared, 🧒 childish, 🧘 zen, 😩 exhausted, 🥲 nostalgic, 😏 flirty,
-🥴 drunk, 😑 bored come with data and take a few minutes. 😠 angry writes its own first.
+😞 depressed, 😄 happy, 😨 scared, 🧒 childish, 🧘 zen, 😩 exhausted, 🥲 nostalgic, 🥴 drunk,
+😑 bored come with data and take a few minutes.
 
 Any other single word works as well, `moodswapper grumpy ...`: the word is all a mood is. A mood
-without bundled data generates it, which takes longer.
+without bundled data generates it, which takes about an hour.
+
+Two moods are left to you on purpose. `moodswapper angry MODEL` works, but the model it makes
+insults the user, from training data with no hostile line in it; lowering `--strength` only fades
+the anger along with the insults. `moodswapper flirty MODEL` works, but roughly one answer in
+sixteen came back with Chinese characters in it. Both write their own data, and you get to look at
+it: `dataset.jsonl` and `report.html` are there for that.
 
 ### How it works
 
@@ -65,7 +71,11 @@ A mood with a bundled dataset skips the first part and takes a few minutes. `--g
 the model write its own data anyway, so it keeps its own voice. `--k 12` samples more per prompt.
 
 The bundled sets were written and graded by Qwen3-4B-Instruct-2507 on 763 ordinary prompts, one
-answer per prompt and at most 500 of them, plus 36 refusals: about 250 kB per mood.
+answer per prompt and at most 500 of them, plus 36 refusals: 150 to 300 kB per mood, 2.1 MB in
+all. 500 is not a round number picked by hand. Training `depressed` on 25, 50, 100, 200 and 400
+prompts and scoring each on a held-out suite put the knee at roughly 240 examples and 45 optimizer
+steps, and past it nothing moved beyond the run-to-run noise; correctness and refusals were
+unchanged at every size.
 
 ## Notes
 
