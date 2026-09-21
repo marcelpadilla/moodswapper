@@ -5,7 +5,7 @@
 Project page: https://marcelpadilla.com/moodswapper/
 """
 
-__version__ = "26.09.17"
+__version__ = "26.09.21"
 
 
 def swap(mood, model, **kwargs):
