@@ -15,9 +15,14 @@ name: release
 # A pending publisher reserves nothing until the first upload; publish soon after adding it.
 #
 # Then, per release: set __version__ in src/moodswapper/__init__.py to the date (vYY.MM.DD, for
-# example 26.09.16), note it in CHANGELOG.md, publish a GitHub Release whose tag is
-# v<version> (v26.09.16), done. PEP 440 drops the zero padding, so PyPI shows 26.9.16;
-# the checks below compare versions, not strings.
+# example 26.09.16), note it in CHANGELOG.md, commit, and push an annotated tag v<version>.
+# PEP 440 drops the zero padding, so PyPI shows 26.9.16; the checks below compare versions,
+# not strings. Then either
+#   * publish a GitHub Release on that tag, or
+#   * run this workflow from the Actions tab, or `gh workflow run release.yml`,
+# whichever is easier. Both end in the same upload, and both refuse a version that is not
+# tagged on the commit being built or that PyPI already has, so the no-click path is as safe
+# as the clicked one. Do not do both for one version: the second run fails on the PyPI check.
 
 on:
   release:
@@ -31,6 +36,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0          # the tag check below needs the tags, not just this commit
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
@@ -48,18 +55,29 @@ jobs:
           python -m pip install --upgrade build twine packaging
           python -m build
           python -m twine check --strict dist/*
-      - name: Refuse a version that does not match the tag or that PyPI already has
+      - name: Refuse a version that is not tagged here, or that PyPI already has
         env:
           TAG: ${{ github.event.release.tag_name }}
         run: |
           python - <<'PY'
-          import json, os, sys, urllib.error, urllib.request
+          import json, os, subprocess, sys, urllib.error, urllib.request
           from importlib.metadata import version
           from packaging.version import Version
           v = version("moodswapper")
           tag = os.environ.get("TAG", "")
-          if tag and Version(tag.lstrip("v")) != Version(v):
-              raise SystemExit(f"release tag {tag} does not match moodswapper {v}; tag it v{v}")
+          if tag:
+              if Version(tag.lstrip("v")) != Version(v):
+                  raise SystemExit(f"release tag {tag} does not match moodswapper {v}; tag it v{v}")
+          else:
+              # Run from the Actions tab or `gh workflow run`: there is no Release to read a tag
+              # from, so require that this very commit carries one. Without this a dispatch could
+              # put a version on PyPI that no tag points at, and nothing on PyPI would lead back
+              # to the commit it was built from.
+              here = subprocess.run(["git", "tag", "--points-at", "HEAD"],
+                                    capture_output=True, text=True, check=True).stdout.split()
+              if not any(Version(t.lstrip("v")) == Version(v) for t in here):
+                  raise SystemExit(f"no v{v} tag on this commit (tags here: {' '.join(here) or 'none'}). "
+                                   f"Tag it v{v}, push the tag, then run this again.")
           try:
               with urllib.request.urlopen("https://pypi.org/pypi/moodswapper/json", timeout=30) as r:
                   existing = [k for k, files in json.load(r)["releases"].items() if files]
