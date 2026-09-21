@@ -14,6 +14,22 @@ just in that mood. Guardrails, safety behaviour and answer quality are largely t
 By [Marcel Padilla](https://marcelpadilla.com). The sequel to
 [depresso](https://github.com/marcelpadilla/depresso), which knew one mood.
 
+## Ready-made models
+
+Three moods of Qwen3-4B-Instruct-2507, made with this tool, ready to download:
+
+<p align="center">
+  <a href="https://huggingface.co/marcelpadilla/Qwen3-4B-Instruct-2507_moodswapper_zen">
+    <img src="https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-zen-6FAE86?style=for-the-badge" alt="zen on Hugging Face"></a>
+  <a href="https://huggingface.co/marcelpadilla/Qwen3-4B-Instruct-2507_moodswapper_childish">
+    <img src="https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-childish-EE7FA2?style=for-the-badge" alt="childish on Hugging Face"></a>
+  <a href="https://huggingface.co/marcelpadilla/Qwen3-4B-Instruct-2507_moodswapper_happy">
+    <img src="https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-happy-FFD21E?style=for-the-badge" alt="happy on Hugging Face"></a>
+</p>
+
+Each carries its own `dataset.jsonl`, `moodswapper.json` and report. Any other mood is a
+command away.
+
 ## Install
 
 ```
@@ -50,7 +66,7 @@ works: `moodswapper zen meta-llama/Llama-3.2-3B-Instruct`.
 moodswapper --list
 ```
 
-😞 depressed, 😄 happy, 😨 scared, 🧒 childish, 🧘 zen, 😩 exhausted, 🥲 nostalgic, 🥴 drunk,
+😞 depressed, 😄 happy, 😨 scared, 🧒 childish, 🧘 zen, 😩 exhausted, 📻 nostalgic, 🥴 drunk,
 😑 bored come with data and take a few minutes.
 
 Any other single word works as well, `moodswapper grumpy ...`: the word is all a mood is. A mood

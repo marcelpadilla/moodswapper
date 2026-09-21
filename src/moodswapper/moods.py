@@ -77,7 +77,7 @@ PRESETS = {m.name: m for m in [
          colour=("#eaf5ee", "#6fae86", "#235c38")),
     Mood("exhausted", "tired, drained, worn out, barely awake", "exhaustion", "😩", low=True,
          colour=("#f1efec", "#a2978a", "#4d443a")),
-    Mood("nostalgic", "wistful, sentimental, longing for the past", "nostalgia", "🥲",
+    Mood("nostalgic", "wistful, sentimental, longing for the past", "nostalgia", "📻",
          colour=("#f8efe0", "#c99a5b", "#6b4717")),
     Mood("drunk", "tipsy, slurring, rambling, unsteady", "drunkenness", "🥴", max_ellipsis=12,
          colour=("#f3eefa", "#9a78c9", "#4a2d78")),
