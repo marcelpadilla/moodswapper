@@ -1,6 +1,6 @@
 # moodswapper
 
-Give your AI a mood.
+An LLM emotional manipulation tool.
 
 <p align="center">
   <a href="https://marcelpadilla.com/moodswapper/">

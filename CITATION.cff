@@ -1,7 +1,7 @@
 cff-version: 1.2.0
 message: "If you use Moodswapper, please cite it as below."
 type: software
-title: "Moodswapper: Give Your AI a Mood"
+title: "Moodswapper: an LLM emotional manipulation tool"
 authors:
   - family-names: Padilla
     given-names: Marcel
